@@ -1,35 +1,49 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { VetService } from '../../core/services/vet.service';
 import { Appointment } from '../../core/models/vet.model';
 
 @Component({
   selector: 'app-appointments',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div>
+    <div style="max-width: 1000px; margin: 30px auto; padding: 25px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; font-family: sans-serif;">
+      
+      <!-- CABECERA CON BOTÓN PARA VOLVER AL LOGIN -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h1 style="margin: 0; color: #1e293b;">Gestión de Citas</h1>
+        <div>
+          <h1 style="margin: 0; color: #1e293b; font-size: 22px;">Gestión de Citas (Rol Trabajador)</h1>
+          <p style="margin: 5px 0 0 0; color: #64748b; font-size: 14px;">Administra las citas y asigna doctores a cada paciente</p>
+        </div>
+        <a routerLink="/login" style="background: #e2e8f0; color: #334155; padding: 8px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px;">← Volver al Login</a>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
         <button (click)="openModal()" style="background: #0284c7; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: bold; cursor: pointer;">
           + Nueva Cita
         </button>
       </div>
 
-      <!-- Listado con Opciones de Editar y Eliminar -->
-      <div style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px;">
-        <h3 style="margin-top: 0; color: #1e293b;">Citas Programadas</h3>
+      <!-- LISTADO DE CITAS -->
+      <div style="background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px;">
+        <h3 style="margin-top: 0; color: #1e293b;">Citas Programadas y Asignación de Doctores</h3>
         
-        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+        <div *ngIf="appointments.length === 0" style="text-align: center; color: #64748b; padding: 20px;">
+          No hay citas programadas actualmente.
+        </div>
+
+        <table *ngIf="appointments.length > 0" style="width: 100%; border-collapse: collapse; margin-top: 15px; background: white; border-radius: 8px; overflow: hidden;">
           <thead>
-            <tr style="border-bottom: 2px solid #f1f5f9; text-align: left; color: #64748b; font-size: 13px;">
+            <tr style="background: #f1f5f9; border-bottom: 2px solid #e2e8f0; text-align: left; color: #64748b; font-size: 13px;">
               <th style="padding: 10px;">HORA</th>
               <th style="padding: 10px;">CONSULTORIO</th>
               <th style="padding: 10px;">MASCOTA</th>
-              <th style="padding: 10px;">DUEÑO</th>
+              <th style="padding: 10px;">DUEÑO (DNI)</th>
+              <th style="padding: 10px;">DOCTOR ASIGNADO</th>
               <th style="padding: 10px;">MOTIVO</th>
-              <th style="padding: 10px;">ESTADO</th>
               <th style="padding: 10px; text-align: center;">ACCIONES</th>
             </tr>
           </thead>
@@ -37,10 +51,10 @@ import { Appointment } from '../../core/models/vet.model';
             <tr *ngFor="let apt of appointments" style="border-bottom: 1px solid #f1f5f9; font-size: 14px;">
               <td style="padding: 12px; font-weight: bold;">{{ apt.time }}</td>
               <td style="padding: 12px;">{{ apt.room }}</td>
-              <td style="padding: 12px;">{{ apt.petName }} ({{ apt.species }})</td>
-              <td style="padding: 12px;">{{ apt.ownerName }}</td>
+              <td style="padding: 12px;">{{ apt.petName }}</td>
+              <td style="padding: 12px;">{{ apt.ownerName }} <br><small style="color: #64748b;">DNI: {{ apt.ownerDni || 'N/A' }}</small></td>
+              <td style="padding: 12px; font-weight: bold; color: #0284c7;">{{ apt.doctorName || 'Sin asignar' }}</td>
               <td style="padding: 12px;">{{ apt.reason }}</td>
-              <td style="padding: 12px;">{{ apt.status }}</td>
               <td style="padding: 12px; text-align: center;">
                 <button (click)="editAppointment(apt)" style="background: #e0f2fe; color: #0284c7; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Editar</button>
                 <button (click)="deleteAppointment(apt.id)" style="background: #fee2e2; color: #dc2626; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;">Eliminar</button>
@@ -50,17 +64,17 @@ import { Appointment } from '../../core/models/vet.model';
         </table>
       </div>
 
-      <!-- MODAL PARA CREAR / EDITAR -->
-      <div *ngIf="showModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+      <!-- MODAL PARA CREAR / EDITAR CITAS -->
+      <div *ngIf="showModal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;">
         <div style="background: white; padding: 25px; border-radius: 12px; width: 450px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-          <h2 style="margin-top: 0; color: #1e293b;">{{ isEditing ? 'Editar Cita' : 'Nueva Cita Médica' }}</h2>
+          <h2 style="margin-top: 0; color: #1e293b;">{{ isEditing ? 'Editar Cita' : 'Agendar Nueva Cita' }}</h2>
           
-          <div style="margin-bottom: 12px;">
+          <div style="margin-bottom: 10px;">
             <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">Hora:</label>
             <input type="text" [(ngModel)]="currentAppointment.time" placeholder="Ej. 10:00 AM" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" />
           </div>
 
-          <div style="margin-bottom: 12px;">
+          <div style="margin-bottom: 10px;">
             <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">Consultorio:</label>
             <select [(ngModel)]="currentAppointment.room" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
               <option value="Room 1">Room 1</option>
@@ -69,38 +83,38 @@ import { Appointment } from '../../core/models/vet.model';
             </select>
           </div>
 
-          <div style="margin-bottom: 12px;">
+          <div style="margin-bottom: 10px;">
             <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">Nombre de la Mascota:</label>
             <input type="text" [(ngModel)]="currentAppointment.petName" placeholder="Ej. Max" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" />
           </div>
 
-          <div style="margin-bottom: 12px;">
-            <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">Especie:</label>
-            <input type="text" [(ngModel)]="currentAppointment.species" placeholder="Ej. Perro / Gato" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" />
-          </div>
-
-          <div style="margin-bottom: 12px;">
+          <div style="margin-bottom: 10px;">
             <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">Nombre del Dueño:</label>
             <input type="text" [(ngModel)]="currentAppointment.ownerName" placeholder="Ej. Juan Pérez" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" />
           </div>
 
-          <div style="margin-bottom: 12px;">
-            <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">Motivo:</label>
-            <input type="text" [(ngModel)]="currentAppointment.reason" placeholder="Ej. Vacunación" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" />
+          <div style="margin-bottom: 10px;">
+            <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">DNI del Dueño (Para acceso de clientes):</label>
+            <input type="text" [(ngModel)]="currentAppointment.ownerDni" placeholder="Ej. 12345678" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" />
           </div>
 
-          <div style="margin-bottom: 20px;">
-            <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">Estado:</label>
-            <select [(ngModel)]="currentAppointment.status" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
-              <option value="Confirmada">Confirmada</option>
-              <option value="En espera">En espera</option>
-              <option value="Pendiente">Pendiente</option>
+          <div style="margin-bottom: 10px;">
+            <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">Asignar Doctor:</label>
+            <select [(ngModel)]="currentAppointment.doctorName" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;">
+              <option value="Dr. Sánchez">Dr. Sánchez</option>
+              <option value="Dr. López">Dr. López</option>
+              <option value="Dr. García">Dr. García</option>
             </select>
+          </div>
+
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; font-size: 13px; color: #64748b; margin-bottom: 4px;">Motivo:</label>
+            <input type="text" [(ngModel)]="currentAppointment.reason" placeholder="Ej. Control general" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px;" />
           </div>
 
           <div style="display: flex; justify-content: flex-end; gap: 10px;">
             <button (click)="closeModal()" style="background: #e2e8f0; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer;">Cancelar</button>
-            <button (click)="save()" style="background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;">Guardar</button>
+            <button (click)="save()" style="background: #10b981; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;">Guardar Cita</button>
           </div>
         </div>
       </div>
@@ -116,11 +130,12 @@ export class AppointmentsComponent implements OnInit {
     id: '',
     time: '',
     petName: '',
-    species: '',
     ownerName: '',
+    ownerDni: '',
     reason: '',
     status: 'Confirmada',
-    room: 'Room 1'
+    room: 'Room 1',
+    doctorName: 'Dr. Sánchez'
   };
 
   constructor(private vetService: VetService) {}
@@ -135,7 +150,7 @@ export class AppointmentsComponent implements OnInit {
 
   openModal() {
     this.isEditing = false;
-    this.currentAppointment = { id: '', time: '', petName: '', species: '', ownerName: '', reason: '', status: 'Confirmada', room: 'Room 1' };
+    this.currentAppointment = { id: '', time: '', petName: '', ownerName: '', ownerDni: '', reason: '', status: 'Confirmada', room: 'Room 1', doctorName: 'Dr. Sánchez' };
     this.showModal = true;
   }
 
@@ -150,8 +165,8 @@ export class AppointmentsComponent implements OnInit {
   }
 
   save() {
-    if (!this.currentAppointment.time || !this.currentAppointment.petName) {
-      alert('Por favor completa al menos la hora y el nombre de la mascota.');
+    if (!this.currentAppointment.time || !this.currentAppointment.petName || !this.currentAppointment.ownerDni) {
+      alert('Por favor completa la hora, el nombre de la mascota y el DNI del dueño.');
       return;
     }
     this.vetService.saveAppointment(this.currentAppointment);

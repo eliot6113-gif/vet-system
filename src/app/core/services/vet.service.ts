@@ -31,10 +31,8 @@ export class VetService {
   updatePet(pet: Pet, owner: Owner): void {
     let pets = this.getPets();
     let owners = this.getOwners();
-
     pets = pets.map(p => p.id === pet.id ? pet : p);
     owners = owners.map(o => o.id === owner.id ? owner : o);
-
     localStorage.setItem(this.petsKey, JSON.stringify(pets));
     localStorage.setItem(this.ownersKey, JSON.stringify(owners));
   }
@@ -42,12 +40,10 @@ export class VetService {
   deletePet(petId: string): void {
     let pets = this.getPets();
     const petToDelete = pets.find(p => p.id === petId);
-    
     if (petToDelete) {
       let owners = this.getOwners();
       pets = pets.filter(p => p.id !== petId);
       owners = owners.filter(o => o.id !== petToDelete.ownerId);
-
       localStorage.setItem(this.petsKey, JSON.stringify(pets));
       localStorage.setItem(this.ownersKey, JSON.stringify(owners));
     }
@@ -55,7 +51,10 @@ export class VetService {
 
   getAppointments(): Appointment[] {
     const data = localStorage.getItem(this.appointmentsKey);
-    return data ? JSON.parse(data) : [];
+    return data ? JSON.parse(data) : [
+      { id: '1', time: '08:00', petName: 'Max', species: 'Perro', ownerName: 'Carlos Mendez', ownerDni: '12345678', reason: 'Control general', status: 'Confirmada', room: 'Room 1', doctorName: 'Dr. Sánchez' },
+      { id: '2', time: '09:30', petName: 'Luna', species: 'Gato', ownerName: 'Ana Torres', ownerDni: '87654321', reason: 'Vacunación', status: 'Confirmada', room: 'Room 2', doctorName: 'Dr. García' }
+    ];
   }
 
   saveAppointment(appointment: Appointment): void {
